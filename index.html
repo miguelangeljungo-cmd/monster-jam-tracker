@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="app-version" content="mj-redesign-v4">
+<meta name="app-version" content="mj-redesign-v5">
 <title>Monster Jam Tracker</title>
 <meta name="theme-color" content="#0b0b0d">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
@@ -68,6 +68,7 @@ select.pill{appearance:none;-webkit-appearance:none;padding-right:26px;backgroun
 .banner{position:relative;border-radius:16px;overflow:hidden;height:150px;margin-bottom:10px;background:radial-gradient(ellipse at 50% 120%,#5a3a10,#16161a 70%);display:grid;place-items:center;text-align:center;border:1px solid var(--line)}
 .banner .bt{font-weight:900;font-style:italic;font-size:38px;line-height:1;color:var(--y);-webkit-text-stroke:1.5px #000;text-shadow:3px 3px 0 #000,0 0 18px #ff9d0066;text-transform:uppercase;padding:0 10px}
 .banner small{display:block;color:#fff;font-weight:800;letter-spacing:3px;margin-top:6px;font-size:11px}
+.banner .bgimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.55}.banner>div:not(.ghost){position:relative}.banner .credit{position:absolute;right:6px;bottom:4px;font-size:9.5px;color:#ddd;background:#0008;padding:1px 5px;border-radius:5px;text-decoration:none}
 .banner .ghost{position:absolute;bottom:-14px;width:120px;opacity:.35}
 .prog{background:var(--card);border-radius:14px;padding:12px 14px;border:1px solid var(--line);margin-bottom:10px}
 .prog .row{display:flex;justify-content:space-between;align-items:center}.prog b{font-size:22px;font-weight:900}
@@ -1304,6 +1305,360 @@ else if(storedVer<CATALOG_VERSION){
   });
   entries=fresh.concat(extras);localStorage.setItem('smjm_catalog_version',CATALOG_VERSION);localStorage.setItem('smjm_entries',JSON.stringify(entries));
 }
+// Wiki photos (Monster Jam Wiki, monsterjam.fandom.com, CC BY-SA 3.0)
+// VERSION_PHOTOS: entry id -> exact-match photo of that exact toy version (none found on the wiki yet)
+const VERSION_PHOTOS={};
+// TRUCK_COVERS: truck model key -> wiki main page image, used ONLY as the By Truck tile cover (real truck, not a toy version)
+const TRUCK_COVERS={
+"avenger": {
+"src": "img/covers/avenger.jpg",
+"kind": "cover",
+"truck": "Avenger",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Avenger",
+"file": "Flamer.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Flamer.jpg",
+"author": "Whalee402",
+"license": "CC BY-SA 3.0",
+"w": 600,
+"h": 325
+},
+"backwardsbob": {
+"src": "img/covers/backwardsbob.jpg",
+"kind": "cover",
+"truck": "Backwards Bob",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Backwards_Bob",
+"file": "X9.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:X9.jpg",
+"author": "Whalee402",
+"license": "CC BY-SA 3.0",
+"w": 250,
+"h": 175
+},
+"badnewstravelsfast": {
+"src": "img/covers/badnewstravelsfast.jpg",
+"kind": "cover",
+"truck": "Bad News Travels Fast",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Bad_News_Travels_Fast",
+"file": "HinyWiper.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:HinyWiper.jpg",
+"author": "Whalee402",
+"license": "CC BY-SA 3.0",
+"w": 250,
+"h": 175
+},
+"bigkahuna": {
+"src": "img/covers/bigkahuna.jpg",
+"kind": "cover",
+"truck": "Big Kahuna",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Big_Kahuna",
+"file": "Photo-1-1024x768.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Photo-1-1024x768.jpg",
+"author": "Shade-the-Nightwing",
+"license": "CC BY-SA 3.0",
+"w": 600,
+"h": 450
+},
+"bluethunder": {
+"src": "img/covers/bluethunder.jpg",
+"kind": "cover",
+"truck": "Blue Thunder",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Blue_Thunder",
+"file": "X8.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:X8.jpg",
+"author": "Whalee402",
+"license": "CC BY-SA 3.0",
+"w": 400,
+"h": 266
+},
+"bountyhunter": {
+"src": "img/covers/bountyhunter.jpg",
+"kind": "cover",
+"truck": "Bounty Hunter",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Bounty_Hunter",
+"file": "Trackness_Chaser.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Trackness_Chaser.jpg",
+"author": "Whalee402",
+"license": "CC BY-SA 3.0",
+"w": 250,
+"h": 175
+},
+"bulldozer": {
+"src": "img/covers/bulldozer.jpg",
+"kind": "cover",
+"truck": "Bulldozer",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Bulldozer",
+"file": "Bulldozer.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Bulldozer.jpg",
+"author": "Shade-the-Nightwing",
+"license": "CC BY-SA 3.0",
+"w": 500,
+"h": 400
+},
+"captainscurse": {
+"src": "img/covers/captainscurse.jpg",
+"kind": "cover",
+"truck": "Captain's Curse",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Captain's_Curse",
+"file": "Sam_the_Pirate.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Sam_the_Pirate.jpg",
+"author": "Whalee402",
+"license": "CC BY-SA 3.0",
+"w": 250,
+"h": 175
+},
+"monstermuttdalmatian": {
+"src": "img/covers/monstermuttdalmatian.jpg",
+"kind": "cover",
+"truck": "Monster Mutt Dalmatian",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Dalmatian",
+"file": "MonsterMutt_dalmatian1280x1.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:MonsterMutt_dalmatian1280x1.jpg",
+"author": "Shade-the-Nightwing",
+"license": "CC BY-SA 3.0",
+"w": 600,
+"h": 480
+},
+"dragon": {
+"src": "img/covers/dragon.jpg",
+"kind": "cover",
+"truck": "Dragon",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Dragon",
+"file": "Mj18_20180512_21686-edit_1200x627.jpg.png",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Mj18_20180512_21686-edit_1200x627.jpg.png",
+"author": "Rupturemations",
+"license": "CC BY-SA 3.0",
+"w": 600,
+"h": 314
+},
+"eltoroloco": {
+"src": "img/covers/eltoroloco.jpg",
+"kind": "cover",
+"truck": "El Toro Loco",
+"wikiPage": "https://monsterjam.fandom.com/wiki/El_Toro_Loco",
+"file": "Eltoroloco_(1).jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Eltoroloco_(1).jpg",
+"author": "Drsdrum",
+"license": "CC BY-SA 3.0",
+"w": 600,
+"h": 330
+},
+"gravedigger": {
+"src": "img/covers/gravedigger.jpg",
+"kind": "cover",
+"truck": "Grave Digger",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Grave_Digger",
+"file": "Grave-Digger_07.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Grave-Digger_07.jpg",
+"author": "Baby Planets",
+"license": "CC BY-SA 3.0",
+"w": 250,
+"h": 200
+},
+"gravediggerthelegend": {
+"src": "img/covers/gravediggerthelegend.jpg",
+"kind": "cover",
+"truck": "Grave Digger the Legend",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Grave_Digger_The_Legend",
+"file": "Grave-Digger-Legend-3.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Grave-Digger-Legend-3.jpg",
+"author": "Shade-the-Nightwing",
+"license": "CC BY-SA 3.0",
+"w": 425,
+"h": 294
+},
+"highereducation": {
+"src": "img/covers/highereducation.jpg",
+"kind": "cover",
+"truck": "Higher Education",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Higher_Education",
+"file": "Monster-higher-education.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Monster-higher-education.jpg",
+"author": "Rupturemations",
+"license": "CC BY-SA 3.0",
+"w": 300,
+"h": 200
+},
+"ironoutlaw": {
+"src": "img/covers/ironoutlaw.jpg",
+"kind": "cover",
+"truck": "Iron Outlaw",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Iron_Outlaw",
+"file": "Iron-outlaw-2.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Iron-outlaw-2.jpg",
+"author": "Tacky3663",
+"license": "CC BY-SA 3.0",
+"w": 400,
+"h": 320
+},
+"jurassicattack": {
+"src": "img/covers/jurassicattack.jpg",
+"kind": "cover",
+"truck": "Jurassic Attack",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Jurassic_Attack",
+"file": "3104982373_1430da1073_z.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:3104982373_1430da1073_z.jpg",
+"author": "Shade-the-Nightwing",
+"license": "CC BY-SA 3.0",
+"w": 600,
+"h": 400
+},
+"kingkrunch": {
+"src": "img/covers/kingkrunch.jpg",
+"kind": "cover",
+"truck": "King Krunch",
+"wikiPage": "https://monsterjam.fandom.com/wiki/King_Krunch",
+"file": "1.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:1.jpg",
+"author": "Shade-the-Nightwing",
+"license": "CC BY-SA 3.0",
+"w": 600,
+"h": 400
+},
+"maxd": {
+"src": "img/covers/maxd.jpg",
+"kind": "cover",
+"truck": "Max-D",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Maximum_Destruction",
+"file": "Arkor-Kolas.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Arkor-Kolas.jpg",
+"author": "Whalee402",
+"license": "CC BY-SA 3.0",
+"w": 400,
+"h": 267
+},
+"greatclipsmohawkwarrior": {
+"src": "img/covers/greatclipsmohawkwarrior.jpg",
+"kind": "cover",
+"truck": "Great Clips Mohawk Warrior",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Mohawk_Warrior",
+"file": "Pure_Awesomeness.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Pure_Awesomeness.jpg",
+"author": "Whalee402",
+"license": "CC BY-SA 3.0",
+"w": 250,
+"h": 166
+},
+"monstermutt": {
+"src": "img/covers/monstermutt.jpg",
+"kind": "cover",
+"truck": "Monster Mutt",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Monster_Mutt",
+"file": "Doggie_Destruction.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Doggie_Destruction.jpg",
+"author": "Whalee402",
+"license": "CC BY-SA 3.0",
+"w": 250,
+"h": 175
+},
+"radicalrescue": {
+"src": "img/covers/radicalrescue.jpg",
+"kind": "cover",
+"truck": "Radical Rescue",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Radical_Rescue",
+"file": "Resqu02b.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Resqu02b.jpg",
+"author": "Shade-the-Nightwing",
+"license": "CC BY-SA 3.0",
+"w": 600,
+"h": 450
+},
+"monstermuttrottweiler": {
+"src": "img/covers/monstermuttrottweiler.jpg",
+"kind": "cover",
+"truck": "Monster Mutt Rottweiler",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Rottweiler",
+"file": "168821_490369432694_531097694_6240806_715201_n.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:168821_490369432694_531097694_6240806_715201_n.jpg",
+"author": "Shade-the-Nightwing",
+"license": "CC BY-SA 3.0",
+"w": 600,
+"h": 450
+},
+"scarletbandit": {
+"src": "img/covers/scarletbandit.jpg",
+"kind": "cover",
+"truck": "Scarlet Bandit",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Scarlet_Bandit",
+"file": "ScarletBandit_01.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:ScarletBandit_01.jpg",
+"author": "Baby Planets",
+"license": "CC BY-SA 3.0",
+"w": 250,
+"h": 175
+},
+"sonuvadigger": {
+"src": "img/covers/sonuvadigger.jpg",
+"kind": "cover",
+"truck": "Son-Uva Digger",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Son-Uva_Digger",
+"file": "Melkor.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Melkor.jpg",
+"author": "Whalee402",
+"license": "CC BY-SA 3.0",
+"w": 600,
+"h": 330
+},
+"stonecrusher": {
+"src": "img/covers/stonecrusher.jpg",
+"kind": "cover",
+"truck": "Stone Crusher",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Stone_Crusher",
+"file": "Stone_Snake.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Stone_Snake.jpg",
+"author": "Whalee402",
+"license": "CC BY-SA 3.0",
+"w": 250,
+"h": 175
+},
+"superman": {
+"src": "img/covers/superman.jpg",
+"kind": "cover",
+"truck": "Superman",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Superman",
+"file": "Superman.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Superman.jpg",
+"author": "Whalee402",
+"license": "CC BY-SA 3.0",
+"w": 250,
+"h": 175
+},
+"timeflys": {
+"src": "img/covers/timeflys.jpg",
+"kind": "cover",
+"truck": "Time Flys",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Time_Flys",
+"file": "A_Time_flys.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:A_Time_flys.jpg",
+"author": "Shade-the-Nightwing",
+"license": "CC BY-SA 3.0",
+"w": 600,
+"h": 402
+},
+"tropicalthunder": {
+"src": "img/covers/tropicalthunder.jpg",
+"kind": "cover",
+"truck": "Tropical Thunder",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Tropical_Thunder",
+"file": "Tthnd207a1.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:Tthnd207a1.jpg",
+"author": "Shade-the-Nightwing",
+"license": "CC BY-SA 3.0",
+"w": 600,
+"h": 393
+},
+"wolverine": {
+"src": "img/covers/wolverine.jpg",
+"kind": "cover",
+"truck": "Wolverine",
+"wikiPage": "https://monsterjam.fandom.com/wiki/Wolverine",
+"file": "A_wol.jpg",
+"fileUrl": "https://monsterjam.fandom.com/wiki/File:A_wol.jpg",
+"author": "Shade-the-Nightwing",
+"license": "CC BY-SA 3.0",
+"w": 600,
+"h": 401
+}
+};
 // ===== Migration: new fields with defaults =====
 function migrate(e){
   if(e.favorite===undefined)e.favorite=false;
@@ -1345,7 +1700,8 @@ function idb(){return new Promise((res)=>{if(!window.indexedDB)return res(null);
 function idbReq(mode,fn){return new Promise((res,rej)=>{if(!db)return rej(Error('IndexedDB unavailable'));const tx=db.transaction('photos',mode);const r=fn(tx.objectStore('photos'));tx.oncomplete=()=>res(r&&r.result);tx.onerror=()=>rej(tx.error)})}
 async function loadPhotos(){db=await idb();if(!db)return;await new Promise(res=>{const tx=db.transaction('photos');const st=tx.objectStore('photos');const c=st.openCursor();c.onsuccess=()=>{const cur=c.result;if(cur){photos.set(cur.key,cur.value);cur.continue()}else res()};c.onerror=res})}
 function downscale(file,max=600){return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const im=new Image();im.onload=()=>{const s=Math.min(1,max/Math.max(im.width,im.height));const cv=document.createElement('canvas');cv.width=Math.round(im.width*s);cv.height=Math.round(im.height*s);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);URL.revokeObjectURL(url);res(cv.toDataURL('image/jpeg',.82))};im.onerror=()=>rej(Error('Not an image'));im.src=url})}
-const art=e=>photos.has(e.id)?`<img src="${photos.get(e.id)}" alt="${esc(e.name)}" loading="lazy">`:truckSVG(e.name);
+const art=e=>photos.has(e.id)?`<img src="${photos.get(e.id)}" alt="${esc(e.name)}" loading="lazy">`:VERSION_PHOTOS[e.id]?`<img src="${VERSION_PHOTOS[e.id].src}" alt="${esc(e.name)}" loading="lazy" decoding="async">`:truckSVG(e.name);
+function coverArt(t){const own=t.items.find(e=>photos.has(e.id));if(own)return art(own);const v=t.items.filter(e=>VERSION_PHOTOS[e.id]).sort((a,b)=>b.year-a.year)[0];if(v)return art(v);const c=TRUCK_COVERS[t.key];return c?`<img src="${c.src}" alt="${esc(t.name)} (cover photo)" loading="lazy" decoding="async">`:truckSVG(t.name)}
 // ===== Icons =====
 const I={
  home:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 2 11h3v9h5v-6h4v6h5v-9h3z"/></svg>',
@@ -1399,8 +1755,8 @@ var _tm=null,_tmSig='';
 function truckModels(){const sig=entries.length+':'+entries.filter(e=>e.hidden).length+':'+entries.map(e=>e.owned?1:0).join('').length+':'+entries.reduce((a,e)=>a+(e.owned?1:0),0);
  if(_tm&&_tmSig===sig)return _tm;const m=new Map();visible().forEach(e=>truckNames(e).forEach(n=>{const k=normK(n);let t=m.get(k);if(!t)m.set(k,t={key:k,name:n,items:[]});t.items.push(e)}));
  m.forEach(t=>t.owned=t.items.filter(e=>e.owned).length);_tmSig=sig;return _tm=[...m.values()].sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:'base'}))}
-function modelCard(t){const f=t.items.find(e=>photos.has(e.id));const pct=Math.round(t.owned/t.items.length*100);
- return `<a class="tcard ${t.owned===t.items.length?'own':''}" href="#/truck/${encodeURIComponent(t.key)}"><div class="img">${f?art(f):truckSVG(t.name)}</div>${t.owned===t.items.length?`<span class="chk">${I.check}</span>`:''}<div class="nm"><b>${esc(t.name)}</b><small>${t.owned} / ${t.items.length} owned</small><div class="bar"><i style="width:${pct}%"></i></div></div></a>`}
+function modelCard(t){const pct=Math.round(t.owned/t.items.length*100);
+ return `<a class="tcard ${t.owned===t.items.length?'own':''}" href="#/truck/${encodeURIComponent(t.key)}"><div class="img">${coverArt(t)}</div>${t.owned===t.items.length?`<span class="chk">${I.check}</span>`:''}<div class="nm"><b>${esc(t.name)}</b><small>${t.owned} / ${t.items.length} owned</small><div class="bar"><i style="width:${pct}%"></i></div></div></a>`}
 let homeMode=localStorage.getItem('smjm_home_mode')||'truck',homeQ='';
 function vHome(){const v=visible(),own=v.filter(e=>e.owned).length,pct=v.length?Math.round(own/v.length*100):0;const sl=seriesList();const favs=v.filter(e=>e.favorite).slice(0,20);
  app.innerHTML=`<div class="hero"><button class="iconbtn" data-go="#/more" aria-label="Settings">${I.gear}</button><div class="wordmark"><span>MONSTER</span><span>JAM</span></div><div class="sub">1:64 COLLECTION TRACKER</div></div>
@@ -1426,7 +1782,7 @@ function vTruckModel(key){const t=truckModels().find(x=>x.key===key);if(!t){app.
  const list=t.items.filter(e=>tvTab==='all'||(tvTab==='owned'?e.owned:!e.owned));const g=new Map();list.forEach(e=>{const k=skey(e);if(!g.has(k))g.set(k,{year:e.year,name:e.series||e.type,items:[]});g.get(k).items.push(e)});
  const num=s=>{const x=/(\d+)/.exec(s);return x?+x[1]:-1};const groups=[...g.values()].sort((a,b)=>b.year-a.year||num(b.name)-num(a.name)||a.name.localeCompare(b.name));
  const sub=e=>{const bits=[];if(normK(e.name)!==normK(t.name))bits.push(e.name);if(e.variant)bits.push(e.variant);if(!bits.length)bits.push(e.type);return bits.join(' · ')};
- app.innerHTML=topBar(t.name)+`<div class="banner"><div class="ghost">${truckSVG(t.name)}</div><div><div class="bt">${esc(t.name)}</div><small>${n} VERSIONS · ${groups.length} SERIES & SETS</small></div></div>
+ const cv=TRUCK_COVERS[t.key];app.innerHTML=topBar(t.name)+`<div class="banner">${cv?`<img class="bgimg" src="${cv.src}" alt="" loading="lazy"><a class="credit" href="${esc(cv.fileUrl)}" target="_blank" rel="noopener">Cover: real truck · Monster Jam Wiki · CC BY-SA</a>`:`<div class="ghost">${truckSVG(t.name)}</div>`}<div><div class="bt">${esc(t.name)}</div><small>${n} VERSIONS · ${groups.length} SERIES & SETS</small></div></div>
  <div class="prog"><div class="row"><div><b>${t.owned} / ${n}</b> <span style="color:var(--muted)">Collected</span></div></div><div class="row" style="margin-top:6px"><div class="bar"><i style="width:${pct}%"></i></div><b style="font-size:15px">${pct}%</b></div></div>
  <div class="seg">${[['all','All',n],['owned','Owned',t.owned],['need','Need',n-t.owned]].map(x=>`<button class="${tvTab===x[0]?'on':''}" data-tv="${x[0]}">${x[1]} (${x[2]})</button>`).join('')}</div>`+
  (groups.length?groups.map(s=>`<div class="yearh">${esc(s.name)} · ${esc(s.year)} <span style="color:var(--muted);font-weight:600">${s.items.filter(e=>e.owned).length}/${s.items.length}</span></div><div class="grid">${s.items.map(e=>tcard(e).replace(/<small>[^<]*<\/small>/,`<small>${esc(sub(e))}</small>`)).join('')}</div>`).join(''):`<div class="empty">${tvTab==='owned'?'None owned yet.':'You have them all! 🎉'}</div>`);
@@ -1464,7 +1820,7 @@ function vTruck(id){const e=byId.get(id);if(!e){app.innerHTML=topBar('Truck')+'<
  const row=(k,v)=>`<div><span>${k}</span><b>${v}</b></div>`;
  app.innerHTML=`<div class="topbar">${backBtn()}<h1></h1><button class="iconbtn" data-fav="${esc(e.id)}" aria-label="Favorite">${e.favorite?I.heartF:I.heart}</button></div>
  <div class="dimg" style="margin-top:-58px">${art(e)}<div class="acts"><label>📷 ${photos.has(e.id)?'Change':'Add'} photo<input type="file" accept="image/*" id="photoIn" hidden></label>${photos.has(e.id)?'<button data-act="rmphoto">Remove</button>':''}</div></div>
- <div class="dname">${esc(e.name)}</div><div class="dmeta">${esc(e.series||e.type)} · 1:64 Scale · ${esc(e.year)}</div>
+ ${!photos.has(e.id)&&VERSION_PHOTOS[e.id]?`<div class="note" style="padding:6px 0 0">Photo: <a href="${esc(VERSION_PHOTOS[e.id].fileUrl)}" target="_blank" rel="noopener">${esc(VERSION_PHOTOS[e.id].file)}</a> · CC BY-SA, Monster Jam Wiki</div>`:''}<div class="dname">${esc(e.name)}</div><div class="dmeta">${esc(e.series||e.type)} · 1:64 Scale · ${esc(e.year)}</div>
  <div class="btnrow"><button class="bigown ${e.owned?'on':''}" data-act="own" id="ownBtn">${e.owned?I.check+' Owned':'+ Mark as Owned'}</button><a class="btn" href="#/edit/${encodeURIComponent(e.id)}">✎ Edit Details</a></div>
  <div class="btnrow" style="margin-top:0"><button class="btn ${e.favorite?'on':''}" style="flex:1" data-fav="${esc(e.id)}">${e.favorite?I.heartF:I.heart.replace('<svg','<svg width="18" height="18"')} Favorite</button><button class="btn ${e.wishlist?'on':''}" style="flex:1" data-act="wish">${e.wishlist?'★ On Wishlist':'☆ Wishlist'}</button></div>
  <div class="panel dtable"><div><span>Quantity</span><div class="stepper" style="padding:0;border:0"><button data-q="-1">−</button><input id="qtyIn" type="number" min="0" inputmode="numeric" value="${e.quantity||0}"><button data-q="1">+</button></div></div><div><span>Price paid</span><input class="inp" id="priceIn" inputmode="decimal" placeholder="$0.00" value="${esc(e.pricePaid)}"></div></div>
@@ -1494,6 +1850,7 @@ function vMore(){const hidden=entries.filter(e=>e.hidden);const v=visible();cons
  <button class="btn full" data-act="export">Export my data (JSON)</button><button class="btn full" data-act="import">Import data (JSON)</button><button class="btn full" data-act="csv">Export catalog (CSV)</button>
  <div class="sect"><h2>Hidden entries (${hidden.length})</h2></div>${hidden.length?`<div class="panel list">${hidden.map(e=>`<button class="li" data-restore="${esc(e.id)}"><div class="th">${art(e)}</div><div class="tx"><b>${esc(e.name)}</b><small>${esc(e.year+' · '+(e.series||e.type))}</small></div><div class="ct" style="color:var(--y)">Restore</div></button>`).join('')}</div><button class="btn full" data-act="restoreall">Restore all hidden</button>`:'<div class="panel note">No hidden entries.</div>'}
  <div class="sect"><h2>Reset</h2></div><button class="btn r full" data-act="reset">Reset ownership</button>
+ <div class="sect"><h2>Credits</h2></div><div class="panel note">Photos from the <a href="https://monsterjam.fandom.com/" target="_blank" rel="noopener">Monster Jam Wiki</a> (Fandom), licensed <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC BY-SA 3.0</a>, resized. Exact-version toy photos: ${Object.keys(VERSION_PHOTOS).length}. Truck cover photos (real trucks, shown only on By Truck tiles): ${Object.keys(TRUCK_COVERS).length}.<br><br>${Object.values(TRUCK_COVERS).sort((a,b)=>a.truck.localeCompare(b.truck)).map(c=>`${esc(c.truck)}: <a href="${esc(c.fileUrl)}" target="_blank" rel="noopener">${esc(c.file)}</a> by ${esc(c.author)}`).join('<br>')}</div>
  <div class="sect"><h2>About</h2></div><div class="panel note">Monster Jam 1:64 Collection Tracker — ${entries.length} entries (${v.length} visible), Spin Master releases 2019–2026. Your data lives only in this browser (localStorage; photos in IndexedDB). Add to Home Screen for an app-like, offline experience.<br><br>Catalog reference: <a href="https://brianzpatton.com/SpinMaster/index.html" target="_blank" rel="noopener">Brian Z. Patton Monster Truck Collection</a>. Not affiliated with Monster Jam, Feld Entertainment or Spin Master. Truck art is generated placeholders.</div>`;
 }
 // ===== Actions (delegated) =====
