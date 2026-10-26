@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="app-version" content="mj-redesign-v3">
+<meta name="app-version" content="mj-redesign-v4">
 <title>Monster Jam Tracker</title>
 <meta name="theme-color" content="#0b0b0d">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
@@ -74,6 +74,7 @@ select.pill{appearance:none;-webkit-appearance:none;padding-right:26px;backgroun
 .prog .bar{height:10px;flex:1;margin:0 10px 0 0}
 .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:0 0 12px}
 .seg button{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 4px;font-weight:700;font-size:14px}
+.seg.big{grid-template-columns:1fr 1fr;margin:16px 0 4px;background:var(--card);padding:4px;border-radius:14px;border:1px solid var(--line)}.seg.big button{border:0;font-size:16px;font-weight:900;padding:11px;background:none}.az{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}.az button{min-width:30px;padding:5px 6px;border-radius:8px;background:var(--card);font-weight:800;font-size:13px;color:var(--y)}.hrow.wrap{flex-wrap:nowrap}.tcard .nm .bar{height:4px;margin-top:5px}.grid .tcard{content-visibility:auto;contain-intrinsic-size:auto 180px}
 .seg button.on{background:var(--y);color:#111;border-color:var(--y)}
 .dimg{position:relative;margin:0 -14px;aspect-ratio:4/3;background:var(--card2);overflow:hidden}
 .dimg .acts{position:absolute;right:10px;bottom:10px;display:flex;gap:6px}
@@ -1317,7 +1318,7 @@ function migrate(e){
 entries.forEach(migrate);
 localStorage.setItem('smjm_entries',JSON.stringify(entries));
 let byId=new Map();function reindex(){byId=new Map(entries.map(e=>[e.id,e]))}reindex();
-function persist(){localStorage.setItem('smjm_entries',JSON.stringify(entries));reindex()}
+function persist(){_tm=null;localStorage.setItem('smjm_entries',JSON.stringify(entries));reindex()}
 const $=id=>document.getElementById(id);
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 const norm=s=>String(s||'').toLowerCase();
@@ -1367,10 +1368,10 @@ let pageLimit=60,lastRoute='';
 function go(h){location.hash=h}
 function route(){const h=location.hash.slice(1)||'/';const p=h.split('/').filter(Boolean).map(decodeURIComponent);const r=p[0]||'home';
  if(h!==lastRoute){pageLimit=60;lastRoute=h;window.scrollTo(0,0)}
- let tab=r;if(r==='s')tab='series';if(r==='t'||r==='edit')tab=prevTab||'collection';if(r==='add')tab='more';
+ let tab=r;if(r==='s')tab=prevTab==='home'?'home':'series';if(r==='truck')tab='home';if(r==='t'||r==='edit')tab=prevTab||'collection';if(r==='add')tab='more';
  if(['home','collection','series','wishlist','more'].includes(r))prevTab=r;
  $('tabbar').innerHTML=TABS.map(t=>`<a href="${t[2]}" class="${t[0]===tab?'on':''}">${t[3]}<span>${t[1]}</span></a>`).join('');
- ({home:vHome,collection:vCollection,series:vSeries,s:()=>vSeriesDetail(p[1]),t:()=>vTruck(p[1]),edit:()=>vEdit(p[1]),add:()=>vEdit(null),wishlist:vWishlist,more:vMore}[r]||vHome)(p);
+ ({home:vHome,collection:vCollection,series:vSeries,s:()=>vSeriesDetail(p[1]),t:()=>vTruck(p[1]),truck:()=>vTruckModel(p[1]),edit:()=>vEdit(p[1]),add:()=>vEdit(null),wishlist:vWishlist,more:vMore}[r]||vHome)(p);
  observeMore();
 }
 let prevTab='home';
@@ -1385,17 +1386,50 @@ let io;function observeMore(){if(io)io.disconnect();const b=$('loadMore');if(!b|
 function loadMore(){const y=window.scrollY;pageLimit+=60;route();window.scrollTo(0,y)}
 function ringSVG(p){const r=30,c=2*Math.PI*r;return `<svg viewBox="0 0 70 70"><circle cx="35" cy="35" r="${r}" fill="none" stroke="#33363c" stroke-width="7"/><circle cx="35" cy="35" r="${r}" fill="none" stroke="var(--g)" stroke-width="7" stroke-linecap="round" stroke-dasharray="${c*p/100} ${c}" transform="rotate(-90 35 35)"/></svg>`}
 // ===== Views =====
-function vHome(){const v=visible(),own=v.filter(e=>e.owned).length,pct=v.length?Math.round(own/v.length*100):0;const sl=seriesList();
- const recent=sl.filter(s=>catOf(s.items[0])==='series').slice(0,10);const favs=v.filter(e=>e.favorite).slice(0,20);
+// ===== Truck-model grouping =====
+const ALIAS={graverdigger:'',gravedigger1:'Grave Digger',gravedigger25thanniversary:'Grave Digger',gravedigger40thanniversary:'Grave Digger',gravediggerblondetothebone:'Grave Digger',
+ avenger25thanniversary:'Avenger',maxd20thanniversary:'Max-D',maximumdestruction:'Max-D',earthshaker:'Earth Shaker',thunderroarus:'ThunderROARus',freebird:'FreeBird',
+ hurricanforce:'Hurricane Force',monsermuttdalmatian:'Monster Mutt Dalmatian',mysteymachine:'Mystery Machine',w:'W (Whiplash)',wwhiplash:'W (Whiplash)',
+ mohawkwarrior:'Great Clips Mohawk Warrior',greatclipsmohawkwarriorvampire:'Great Clips Mohawk Warrior',scoops:'Scoopz',piratescurseghost:"Pirate's Curse",bigtooth:'Big Tooth'};
+function canon(part){let p=part.trim().replace(/\s+(Fire|Ice)$/,'');const k=normK(p);if(ALIAS[k])return ALIAS[k];
+ const k2=normK(p.replace(/\s*\([^)]*\)\s*/g,' '));if(ALIAS[k2])return ALIAS[k2];
+ if(/\(.*\)/.test(p)&&!/^W \(/.test(p))p=p.replace(/\s*\([^)]*\)\s*/g,' ').trim();return p}
+function truckNames(e){const nm=String(e.name||'');if(!nm)return[];return [...new Set(nm.split(/\s+vs\.?\s+|\//i).map(canon).filter(Boolean))]}
+var _tm=null,_tmSig='';
+function truckModels(){const sig=entries.length+':'+entries.filter(e=>e.hidden).length+':'+entries.map(e=>e.owned?1:0).join('').length+':'+entries.reduce((a,e)=>a+(e.owned?1:0),0);
+ if(_tm&&_tmSig===sig)return _tm;const m=new Map();visible().forEach(e=>truckNames(e).forEach(n=>{const k=normK(n);let t=m.get(k);if(!t)m.set(k,t={key:k,name:n,items:[]});t.items.push(e)}));
+ m.forEach(t=>t.owned=t.items.filter(e=>e.owned).length);_tmSig=sig;return _tm=[...m.values()].sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:'base'}))}
+function modelCard(t){const f=t.items.find(e=>photos.has(e.id));const pct=Math.round(t.owned/t.items.length*100);
+ return `<a class="tcard ${t.owned===t.items.length?'own':''}" href="#/truck/${encodeURIComponent(t.key)}"><div class="img">${f?art(f):truckSVG(t.name)}</div>${t.owned===t.items.length?`<span class="chk">${I.check}</span>`:''}<div class="nm"><b>${esc(t.name)}</b><small>${t.owned} / ${t.items.length} owned</small><div class="bar"><i style="width:${pct}%"></i></div></div></a>`}
+let homeMode=localStorage.getItem('smjm_home_mode')||'truck',homeQ='';
+function vHome(){const v=visible(),own=v.filter(e=>e.owned).length,pct=v.length?Math.round(own/v.length*100):0;const sl=seriesList();const favs=v.filter(e=>e.favorite).slice(0,20);
  app.innerHTML=`<div class="hero"><button class="iconbtn" data-go="#/more" aria-label="Settings">${I.gear}</button><div class="wordmark"><span>MONSTER</span><span>JAM</span></div><div class="sub">1:64 COLLECTION TRACKER</div></div>
  <div class="stats"><div class="tile g" data-go="#/collection" data-own="owned"><b>${own}</b><small>Owned</small></div><div class="tile" data-go="#/collection" data-own="need"><b>${v.length-own}</b><small>Need</small></div><div class="tile bl" data-go="#/collection" data-own=""><b>${v.length}</b><small>Total</small></div><div class="tile ring">${ringSVG(pct)}<div><b>${pct}%</b><br><small>Complete</small></div></div></div>
- <form class="search" id="homeSearch">${I.search}<input id="hq" type="search" placeholder="Search trucks…" enterkeyhint="search"></form>
+ <form class="search" id="homeSearch">${I.search}<input id="hq" type="search" placeholder="${homeMode==='truck'?'Search trucks…':'Search series…'}" enterkeyhint="search" value="${esc(homeQ)}"></form>
  <div class="pills"><select class="pill on" id="hseries"><option value="">All Series</option>${sl.map(s=>`<option value="${esc(s.key)}">${esc(s.year+' · '+s.name)}</option>`).join('')}</select><button class="pill" data-go="#/collection" data-own="owned">Owned</button><button class="pill" data-go="#/collection" data-own="need">Need</button><button class="pill" data-go="#/collection" data-favf="1">Favorites</button></div>
- <div class="cats">${CATS.map(c=>{const n=v.filter(e=>catOf(e)===c[0]);return `<button class="cat" data-go="#/collection" data-cat="${c[0]}"><div class="ph">${truckSVG(c[1])}</div><b>${c[1]}</b><small>${n.filter(e=>e.owned).length}/${n.length} · ${c[2]}</small></button>`}).join('')}</div>
- <div class="sect"><h2>Recent Series</h2><a href="#/series">See All</a></div><div class="hrow">${recent.map(scard).join('')}</div>
- <div class="sect"><h2>My Favorites</h2><a href="#/wishlist">See All</a></div>${favs.length?`<div class="hrow">${favs.map(e=>`<div style="flex:none;width:140px">${tcard(e)}</div>`).join('')}</div>`:`<div class="panel note">Tap the ♡ on any truck to add it here.</div>`}`;
- $('homeSearch').onsubmit=ev=>{ev.preventDefault();cstate={q:$('hq').value,cat:'',own:'',fav:false,series:''};go('#/collection')};
+ ${favs.length?`<div class="sect"><h2>My Favorites</h2><a href="#/wishlist">See All</a></div><div class="hrow">${favs.map(e=>`<div style="flex:none;width:130px">${tcard(e)}</div>`).join('')}</div>`:''}
+ <div class="seg big" id="modeSeg"><button class="${homeMode==='truck'?'on':''}" data-mode="truck">By Truck</button><button class="${homeMode==='series'?'on':''}" data-mode="series">By Series</button></div>
+ <div id="hres"></div>`;
+ const draw=()=>{const q=norm(homeQ).trim();let h='';
+  if(homeMode==='truck'){const tm=truckModels().filter(t=>!q||norm(t.name).includes(q));const L=[...new Set(tm.map(t=>/[a-z]/i.test(t.name[0])?t.name[0].toUpperCase():'#'))];
+   h=`<div class="count">${tm.length} trucks</div><div class="az">${L.map(l=>`<button data-az="${l}">${l}</button>`).join('')}</div>`;let cur='';
+   tm.forEach(t=>{const l=/[a-z]/i.test(t.name[0])?t.name[0].toUpperCase():'#';if(l!==cur){if(cur)h+='</div>';cur=l;h+=`<div class="yearh" id="az-${l}">${l}</div><div class="grid">`}h+=modelCard(t)});if(cur)h+='</div>';if(!tm.length)h+='<div class="empty">No trucks match.</div>'}
+  else{let yr='';sl.filter(s=>!q||norm(s.name+' '+s.year).includes(q)).forEach(s=>{if(s.year!==yr){if(yr)h+='</div>';yr=s.year;h+=`<div class="yearh">${yr}</div><div class="hrow wrap">`}h+=scard(s)});if(yr)h+='</div>';if(!h)h='<div class="empty">No series match.</div>'}
+  $('hres').innerHTML=h};draw();
+ $('hq').oninput=ev=>{homeQ=ev.target.value;draw()};
+ $('homeSearch').onsubmit=ev=>{ev.preventDefault();$('hq').blur()};
  $('hseries').onchange=ev=>{if(ev.target.value)go('#/s/'+encodeURIComponent(ev.target.value))};
+}
+let tvTab='all';
+function vTruckModel(key){const t=truckModels().find(x=>x.key===key);if(!t){app.innerHTML=topBar('Truck')+'<div class="empty">Truck not found.</div>';return}
+ if(vTruckModel.k!==key){tvTab='all';vTruckModel.k=key}const n=t.items.length,pct=Math.round(t.owned/n*100);
+ const list=t.items.filter(e=>tvTab==='all'||(tvTab==='owned'?e.owned:!e.owned));const g=new Map();list.forEach(e=>{const k=skey(e);if(!g.has(k))g.set(k,{year:e.year,name:e.series||e.type,items:[]});g.get(k).items.push(e)});
+ const num=s=>{const x=/(\d+)/.exec(s);return x?+x[1]:-1};const groups=[...g.values()].sort((a,b)=>b.year-a.year||num(b.name)-num(a.name)||a.name.localeCompare(b.name));
+ const sub=e=>{const bits=[];if(normK(e.name)!==normK(t.name))bits.push(e.name);if(e.variant)bits.push(e.variant);if(!bits.length)bits.push(e.type);return bits.join(' · ')};
+ app.innerHTML=topBar(t.name)+`<div class="banner"><div class="ghost">${truckSVG(t.name)}</div><div><div class="bt">${esc(t.name)}</div><small>${n} VERSIONS · ${groups.length} SERIES & SETS</small></div></div>
+ <div class="prog"><div class="row"><div><b>${t.owned} / ${n}</b> <span style="color:var(--muted)">Collected</span></div></div><div class="row" style="margin-top:6px"><div class="bar"><i style="width:${pct}%"></i></div><b style="font-size:15px">${pct}%</b></div></div>
+ <div class="seg">${[['all','All',n],['owned','Owned',t.owned],['need','Need',n-t.owned]].map(x=>`<button class="${tvTab===x[0]?'on':''}" data-tv="${x[0]}">${x[1]} (${x[2]})</button>`).join('')}</div>`+
+ (groups.length?groups.map(s=>`<div class="yearh">${esc(s.name)} · ${esc(s.year)} <span style="color:var(--muted);font-weight:600">${s.items.filter(e=>e.owned).length}/${s.items.length}</span></div><div class="grid">${s.items.map(e=>tcard(e).replace(/<small>[^<]*<\/small>/,`<small>${esc(sub(e))}</small>`)).join('')}</div>`).join(''):`<div class="empty">${tvTab==='owned'?'None owned yet.':'You have them all! 🎉'}</div>`);
 }
 function filterList(){const q=norm(cstate.q).trim();return visible().filter(e=>(!q||[e.name,e.series,e.variant,e.notes,e.type,e.year].some(s=>norm(s).includes(q)))&&(!cstate.cat||catOf(e)===cstate.cat)&&(!cstate.own||(cstate.own==='owned'?e.owned:!e.owned))&&(!cstate.fav||e.favorite)&&(!cstate.series||skey(e)===cstate.series))}
 function vCollection(){const sl=seriesList();
@@ -1464,10 +1498,13 @@ function vMore(){const hidden=entries.filter(e=>e.hidden);const v=visible();cons
 }
 // ===== Actions (delegated) =====
 function download(name,data,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-document.addEventListener('click',ev=>{const t=ev.target.closest('[data-fav],[data-act],[data-go],[data-seg],[data-cown],[data-cfav],[data-ccat],[data-restore]');if(!t)return;
+document.addEventListener('click',ev=>{const t=ev.target.closest('[data-fav],[data-act],[data-go],[data-seg],[data-mode],[data-tv],[data-az],[data-cown],[data-cfav],[data-ccat],[data-restore]');if(!t)return;
  const d=t.dataset;
  if(d.fav){ev.preventDefault();ev.stopPropagation();const e=byId.get(d.fav);e.favorite=!e.favorite;persist();const y=scrollY;route();scrollTo(0,y);toast(e.favorite?'Added to favorites':'Removed from favorites');return}
  if(d.go){if(d.own!==undefined||d.cat||d.favf)cstate={q:'',cat:d.cat||'',own:d.own||'',fav:!!d.favf,series:''};go(d.go);return}
+ if(d.mode){homeMode=d.mode;localStorage.setItem('smjm_home_mode',homeMode);route();return}
+ if(d.tv){tvTab=d.tv;route();return}
+ if(d.az){const x=document.getElementById('az-'+d.az);if(x)scrollTo(0,x.getBoundingClientRect().top+scrollY-10);return}
  if(d.seg){segTab=d.seg;route();return}
  if(d.cown!==undefined){cstate.own=d.cown;route();return}
  if(d.cfav!==undefined){cstate.fav=!cstate.fav;route();return}
