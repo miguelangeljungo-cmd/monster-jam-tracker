@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="app-version" content="mj-redesign-v6">
+<meta name="app-version" content="mj-redesign-v7">
 <title>Monster Jam Tracker</title>
 <meta name="theme-color" content="#0b0b0d">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
@@ -1344,13 +1344,32 @@ function truckSVG(name){const h=hue(name),c=`hsl(${h} 75% 52%)`,d=`hsl(${h} 70% 
  <rect x="62" y="84" width="88" height="10" fill="#333" stroke="#000" stroke-width="2"/>
  ${[56,148].map(x=>`<g><circle cx="${x}" cy="104" r="28" fill="#1b1b1b" stroke="#000" stroke-width="3"/><circle cx="${x}" cy="104" r="28" fill="none" stroke="#3a3a3a" stroke-width="6" stroke-dasharray="6 5"/><circle cx="${x}" cy="104" r="12" fill="${d}" stroke="#bbb" stroke-width="2"/></g>`).join('')}</svg>`}
 // ===== Photos in IndexedDB =====
-const photos=new Map();let db;
+// ----- Private photo pack: zip (stored/deflate via DecompressionStream) or JSON {manifest,images:{file:base64}} -----
+function dropPack(id){const p=packPhotos.get(id);if(p){URL.revokeObjectURL(p.url);packPhotos.delete(id)}}
+async function inflateRaw(u8){const s=new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'));return new Uint8Array(await new Response(s).arrayBuffer())}
+async function unzip(buf){const u=new Uint8Array(buf),dv=new DataView(buf);let e=-1;for(let i=u.length-22;i>=Math.max(0,u.length-65557);i--)if(dv.getUint32(i,true)===0x06054b50){e=i;break}
+ if(e<0)throw Error('Not a zip file');const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const out=new Map(),td=new TextDecoder();
+ for(let k=0;k<n;k++){if(dv.getUint32(p,true)!==0x02014b50)throw Error('Bad zip directory');const m=dv.getUint16(p+10,true),cs=dv.getUint32(p+20,true),fl=dv.getUint16(p+28,true),xl=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lo=dv.getUint32(p+42,true);const name=td.decode(u.subarray(p+46,p+46+fl));p+=46+fl+xl+cl;
+  if(name.endsWith('/'))continue;const ds=lo+30+dv.getUint16(lo+26,true)+dv.getUint16(lo+28,true);const raw=u.subarray(ds,ds+cs);
+  if(m!==0&&m!==8)throw Error('Unsupported zip compression');out.set(name.replace(/^.*\//,''),{m,raw})}
+ return {names:[...out.keys()],get:async f=>{const x=out.get(f);if(!x)return null;return x.m===8?inflateRaw(x.raw):x.raw}}}
+const mimeOf=f=>/\.png$/i.test(f)?'image/png':/\.jpe?g$/i.test(f)?'image/jpeg':'image/webp';
+function pickPack(){const i=document.createElement('input');i.type='file';i.accept='.zip,.json,application/zip,application/json';i.onchange=()=>{if(i.files[0])importPack(i.files[0]).then(r=>{toast(`Photo pack: ${r.added} photos added${r.skipped?`, ${r.skipped} skipped`:''}`);route()}).catch(err=>alert('Photo pack import failed: '+err.message))};i.click()}
+async function importPack(file){if(!db)throw Error('IndexedDB unavailable');let man,get;
+ if(/\.json$/i.test(file.name)||file.type==='application/json'){const j=JSON.parse(await file.text());man=j.manifest||j;const im=j.images||{};get=async f=>im[f]?Uint8Array.from(atob(im[f].replace(/^data:[^,]*,/,'')),c=>c.charCodeAt(0)):null}
+ else{const z=await unzip(await file.arrayBuffer());const mf=await z.get('manifest.json');if(!mf)throw Error('manifest.json missing');man=JSON.parse(new TextDecoder().decode(mf));get=z.get}
+ const list=Array.isArray(man.photos)?man.photos:Object.entries(man.photos||man).map(([id,v])=>typeof v==='string'?{id,file:v}:{id,...v});let added=0,skipped=0;
+ for(const r of list){if(!r||!byId.has(r.id)||!r.file){skipped++;continue}const b=await get(r.file);if(!b){skipped++;continue}
+  const blob=new Blob([b],{type:mimeOf(r.file)});const rec={pack:true,blob,source:r.source||'',page:r.page||'',file:r.file};await idbReq('readwrite',st=>st.put(rec,'pack:'+r.id));dropPack(r.id);packPhotos.set(r.id,{url:URL.createObjectURL(blob),source:rec.source,page:rec.page});added++}
+ return {added,skipped}}
+async function removePack(){const ids=[...packPhotos.keys()];await idbReq('readwrite',st=>{ids.forEach(id=>st.delete('pack:'+id))});ids.forEach(dropPack);return ids.length}
+const photos=new Map(),packPhotos=new Map();let db;// packPhotos: id -> {url,source,page}; stored in IndexedDB under key 'pack:'+id with value {pack:true,blob,source,page}
 function idb(){return new Promise((res)=>{if(!window.indexedDB)return res(null);const r=indexedDB.open('smjm_photos',1);r.onupgradeneeded=()=>r.result.createObjectStore('photos');r.onsuccess=()=>res(r.result);r.onerror=()=>res(null)})}
 function idbReq(mode,fn){return new Promise((res,rej)=>{if(!db)return rej(Error('IndexedDB unavailable'));const tx=db.transaction('photos',mode);const r=fn(tx.objectStore('photos'));tx.oncomplete=()=>res(r&&r.result);tx.onerror=()=>rej(tx.error)})}
-async function loadPhotos(){db=await idb();if(!db)return;await new Promise(res=>{const tx=db.transaction('photos');const st=tx.objectStore('photos');const c=st.openCursor();c.onsuccess=()=>{const cur=c.result;if(cur){photos.set(cur.key,cur.value);cur.continue()}else res()};c.onerror=res})}
+async function loadPhotos(){db=await idb();if(!db)return;await new Promise(res=>{const tx=db.transaction('photos');const st=tx.objectStore('photos');const c=st.openCursor();c.onsuccess=()=>{const cur=c.result;if(cur){const k=String(cur.key),v=cur.value;if(k.startsWith('pack:')){if(v&&v.blob)packPhotos.set(k.slice(5),{url:URL.createObjectURL(v.blob),source:v.source||'',page:v.page||''})}else photos.set(cur.key,v);cur.continue()}else res()};c.onerror=res})}
 function downscale(file,max=600){return new Promise((res,rej)=>{const url=URL.createObjectURL(file);const im=new Image();im.onload=()=>{const s=Math.min(1,max/Math.max(im.width,im.height));const cv=document.createElement('canvas');cv.width=Math.round(im.width*s);cv.height=Math.round(im.height*s);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);URL.revokeObjectURL(url);res(cv.toDataURL('image/jpeg',.82))};im.onerror=()=>rej(Error('Not an image'));im.src=url})}
-const art=e=>photos.has(e.id)?`<img src="${photos.get(e.id)}" alt="${esc(e.name)}" loading="lazy">`:VERSION_PHOTOS[e.id]?`<img src="${VERSION_PHOTOS[e.id].src}" alt="${esc(e.name)}" loading="lazy" decoding="async">`:truckSVG(e.name);
-function coverArt(t){const own=t.items.find(e=>photos.has(e.id));if(own)return art(own);const v=t.items.filter(e=>VERSION_PHOTOS[e.id]).sort((a,b)=>b.year-a.year)[0];if(v)return art(v);return truckSVG(t.name)}
+const art=e=>photos.has(e.id)?`<img src="${photos.get(e.id)}" alt="${esc(e.name)}" loading="lazy">`:packPhotos.has(e.id)?`<img src="${packPhotos.get(e.id).url}" alt="${esc(e.name)}" loading="lazy" decoding="async">`:VERSION_PHOTOS[e.id]?`<img src="${VERSION_PHOTOS[e.id].src}" alt="${esc(e.name)}" loading="lazy" decoding="async">`:truckSVG(e.name);
+function coverArt(t){const own=t.items.find(e=>photos.has(e.id));if(own)return art(own);const v=t.items.filter(e=>packPhotos.has(e.id)||VERSION_PHOTOS[e.id]).sort((a,b)=>b.year-a.year)[0];if(v)return art(v);return truckSVG(t.name)}
 // ===== Icons =====
 const I={
  home:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 2 11h3v9h5v-6h4v6h5v-9h3z"/></svg>',
@@ -1469,12 +1488,12 @@ function vTruck(id){const e=byId.get(id);if(!e){app.innerHTML=topBar('Truck')+'<
  const row=(k,v)=>`<div><span>${k}</span><b>${v}</b></div>`;
  app.innerHTML=`<div class="topbar">${backBtn()}<h1></h1><button class="iconbtn" data-fav="${esc(e.id)}" aria-label="Favorite">${e.favorite?I.heartF:I.heart}</button></div>
  <div class="dimg" style="margin-top:-58px">${art(e)}<div class="acts"><label>📷 ${photos.has(e.id)?'Change':'Add'} photo<input type="file" accept="image/*" id="photoIn" hidden></label>${photos.has(e.id)?'<button data-act="rmphoto">Remove</button>':''}</div></div>
- ${!photos.has(e.id)&&VERSION_PHOTOS[e.id]?`<div class="note" style="padding:6px 0 0">Photo: <a href="${esc(VERSION_PHOTOS[e.id].fileUrl)}" target="_blank" rel="noopener">${esc(VERSION_PHOTOS[e.id].file)}</a> · by ${esc(VERSION_PHOTOS[e.id].author||'unknown')} · CC BY-SA, Monster Trucks Wiki</div>`:''}<div class="dname">${esc(e.name)}</div><div class="dmeta">${esc(e.series||e.type)} · 1:64 Scale · ${esc(e.year)}</div>
+ ${!photos.has(e.id)&&packPhotos.has(e.id)?`<div class="note" style="padding:6px 0 0">Photo: private photo pack${packPhotos.get(e.id).page?` · <a href="${esc(packPhotos.get(e.id).page)}" target="_blank" rel="noopener">source</a>`:''}</div>`:''}${!photos.has(e.id)&&!packPhotos.has(e.id)&&VERSION_PHOTOS[e.id]?`<div class="note" style="padding:6px 0 0">Photo: <a href="${esc(VERSION_PHOTOS[e.id].fileUrl)}" target="_blank" rel="noopener">${esc(VERSION_PHOTOS[e.id].file)}</a> · by ${esc(VERSION_PHOTOS[e.id].author||'unknown')} · CC BY-SA, Monster Trucks Wiki</div>`:''}<div class="dname">${esc(e.name)}</div><div class="dmeta">${esc(e.series||e.type)} · 1:64 Scale · ${esc(e.year)}</div>
  <div class="btnrow"><button class="bigown ${e.owned?'on':''}" data-act="own" id="ownBtn">${e.owned?I.check+' Owned':'+ Mark as Owned'}</button><a class="btn" href="#/edit/${encodeURIComponent(e.id)}">✎ Edit Details</a></div>
  <div class="btnrow" style="margin-top:0"><button class="btn ${e.favorite?'on':''}" style="flex:1" data-fav="${esc(e.id)}">${e.favorite?I.heartF:I.heart.replace('<svg','<svg width="18" height="18"')} Favorite</button><button class="btn ${e.wishlist?'on':''}" style="flex:1" data-act="wish">${e.wishlist?'★ On Wishlist':'☆ Wishlist'}</button></div>
  <div class="panel dtable"><div><span>Quantity</span><div class="stepper" style="padding:0;border:0"><button data-q="-1">−</button><input id="qtyIn" type="number" min="0" inputmode="numeric" value="${e.quantity||0}"><button data-q="1">+</button></div></div><div><span>Price paid</span><input class="inp" id="priceIn" inputmode="decimal" placeholder="$0.00" value="${esc(e.pricePaid)}"></div></div>
  <div class="sect"><h2>Details</h2></div><div class="panel dtable">${row('Name',esc(e.name))}${row('Series',esc(e.series||'—'))}${row('Variant',esc(e.variant||'—'))}${row('Scale','1:64')}${row('Year',esc(e.year))}${row('Type',esc(e.type))}${row('Brand','Monster Jam (Spin Master)')}${row('Status',e.owned?'<span style="color:var(--g)">● Owned</span>':'<span style="color:var(--muted)">Need</span>')}${row('Owned Date',esc(e.ownedDate||'—'))}${row('Added Date',esc(e.addedDate||(String(e.id).startsWith('sm-')?'Catalog':'—')))}${row('Notes',esc(e.notes||'—'))}${row('Source',esc(e.source||'—'))}</div>`;
- $('photoIn').onchange=async ev=>{const f=ev.target.files[0];if(!f)return;try{const d=await downscale(f);await idbReq('readwrite',st=>st.put(d,e.id));photos.set(e.id,d);toast('Photo saved');route()}catch(err){alert('Could not save photo: '+err.message)}};
+ $('photoIn').onchange=async ev=>{const f=ev.target.files[0];if(!f)return;try{const d=await downscale(f);await idbReq('readwrite',st=>{st.delete('pack:'+e.id);return st.put(d,e.id)});photos.set(e.id,d);dropPack(e.id);toast('Photo saved');route()}catch(err){alert('Could not save photo: '+err.message)}};
  const setQ=n=>{n=Math.max(0,parseInt(n)||0);e.quantity=n;if(n>0&&!e.owned)setOwned(e,true),e.quantity=n;if(n===0&&e.owned)setOwned(e,false);persist();route()};
  $('qtyIn').onchange=ev=>setQ(ev.target.value);
  app.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>setQ((e.quantity||0)+ +b.dataset.q));
@@ -1494,9 +1513,10 @@ function vWishlist(){const v=visible();const l=v.filter(e=>e.favorite||e.wishlis
  app.innerHTML=`<div class="topbar"><h1 style="text-align:left">Wishlist</h1></div><div class="count">${l.length} favorites & wanted trucks · ${l.filter(e=>!e.owned).length} still needed</div>`+grid(l,'Tap ♡ on a truck, or "Wishlist" on its detail page, to add it here.');}
 function vMore(){const hidden=entries.filter(e=>e.hidden);const v=visible();const spent=v.reduce((a,e)=>a+(parseFloat(String(e.pricePaid).replace(/[^0-9.]/g,''))||0),0);const qty=v.reduce((a,e)=>a+(e.owned?(+e.quantity||1):0),0);
  app.innerHTML=`<div class="topbar"><h1 style="text-align:left">More</h1></div>
- <div class="panel dtable"><div><span>Trucks owned (incl. duplicates)</span><b>${qty}</b></div><div><span>Total spent</span><b>$${spent.toFixed(2)}</b></div><div><span>Photos stored</span><b>${photos.size}</b></div></div>
+ <div class="panel dtable"><div><span>Trucks owned (incl. duplicates)</span><b>${qty}</b></div><div><span>Total spent</span><b>$${spent.toFixed(2)}</b></div><div><span>My photos</span><b>${photos.size}</b></div><div><span>Photo pack photos</span><b id="packCount">${packPhotos.size}</b></div></div>
  <div class="sect"><h2>Collection</h2></div><a class="btn y full" href="#/add">+ Add custom entry</a>
  <button class="btn full" data-act="export">Export my data (JSON)</button><button class="btn full" data-act="import">Import data (JSON)</button><button class="btn full" data-act="csv">Export catalog (CSV)</button>
+ <div class="sect"><h2>Photo pack</h2></div><div class="panel note">Import a private photo pack (.zip with manifest.json, or .json) kept only on this device. Your own photos always win; a photo you add later replaces the pack one. ${packPhotos.size} pack photos installed.</div><button class="btn full" data-act="packimp">Import photo pack</button>${packPhotos.size?'<button class="btn r full" data-act="packrm">Remove photo pack</button>':''}
  <div class="sect"><h2>Hidden entries (${hidden.length})</h2></div>${hidden.length?`<div class="panel list">${hidden.map(e=>`<button class="li" data-restore="${esc(e.id)}"><div class="th">${art(e)}</div><div class="tx"><b>${esc(e.name)}</b><small>${esc(e.year+' · '+(e.series||e.type))}</small></div><div class="ct" style="color:var(--y)">Restore</div></button>`).join('')}</div><button class="btn full" data-act="restoreall">Restore all hidden</button>`:'<div class="panel note">No hidden entries.</div>'}
  <div class="sect"><h2>Reset</h2></div><button class="btn r full" data-act="reset">Reset ownership</button>
  <div class="sect"><h2>Credits</h2></div><div class="panel note">Toy photos from the <a href="https://monstertruck.fandom.com/" target="_blank" rel="noopener">Monster Trucks Wiki</a> (Fandom), licensed <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC BY-SA 3.0</a>, resized. A photo is assigned only where the wiki file identifies the same truck, series/set and year. Exact-version toy photos: ${Object.keys(VERSION_PHOTOS).length}.<br><br>${Object.entries(VERSION_PHOTOS).map(([id,c])=>{const e=byId.get(id);return `${esc(e?e.name+' · '+(e.series||e.type)+' · '+e.year:id)}: <a href="${esc(c.fileUrl)}" target="_blank" rel="noopener">${esc(c.file)}</a> by ${esc(c.author||'unknown')}`}).join('<br>')}</div>
@@ -1529,6 +1549,8 @@ document.addEventListener('click',ev=>{const t=ev.target.closest('[data-fav],[da
   case 'export':download('spin-master-monster-jam-data.json',JSON.stringify({version:2,catalogVersion:CATALOG_VERSION,entries},null,2),'application/json');break;
   case 'csv':{let rows=[['Name','Year','Scale','Type','Series/Mix/Set','Variant/Extra','Notes','Owned','Quantity','Favorite','Wishlist','Price Paid','Owned Date','Hidden'],...entries.map(e=>[e.name,e.year,'1:64',e.type,e.series,e.variant,e.notes,e.owned?'Yes':'No',e.quantity,e.favorite?'Yes':'No',e.wishlist?'Yes':'No',e.pricePaid,e.ownedDate,e.hidden?'Yes':'No'])];download('spin-master-monster-jam-catalog.csv',rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n'),'text/csv');break}
   case 'import':$('importFile').click();break;
+  case 'packimp':pickPack();break;
+  case 'packrm':if(confirm('Remove all '+packPhotos.size+' photo pack photos? Your own photos stay.'))removePack().then(n=>{toast('Removed '+n+' pack photos');route()});break;
   case 'reset':if(confirm('Unmark every entry as owned? The catalog, favorites and photos will remain.')){entries.forEach(x=>setOwned(x,false));persist();route()}break;
  }
 });
